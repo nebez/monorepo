@@ -1,68 +1,148 @@
-version: 2
+version: 2.1
+
+##
+# Forked from: https://github.com/zladovan/monorepo
+# The fork has been modified to allow for parallelism in CirleCI by spawning
+# workflows through parameterized pipeline creation. This complicates the
+# .circleci/config.yml considerably, but gives us all of the advantages that
+# workflows do over jobs. To go back to jobs, simply replace the "workflow"
+# methods with "job" in plugins/circleci.sh
+#
+# Usage:
+# Add globbing patterns to `projects.txt` (if needed) to pick up on your new
+# app. Your APP_NAME is equal to the top-level directory of the matched glob
+# pattern (e.g. apps/my-cool-app/ -> my-cool-app). Using your APP_NAME, create:
+#   1. A new parameter: trigger_$APP_NAME with a default value of false
+#   2. A new workflow: trigger_$APP_NAME that only runs when the aforementioned
+#      parameter is true (when: << pipeline.parameters.trigger_$APP_NAME >>)
+#   3. As many jobs as you want, as long as they don't collide with the jobs of
+#      another workflow, and reference them in the workflow.
+#
+# This script is also capable of building based on dependent changes. See
+# scripts/core/list-dependencies.sh for notes on how to achieve it.
+##
+
+parameters:
+  trigger_ci:
+    type: boolean
+    default: true
+
+  # A parameter per workflow
+  trigger_nebez:
+    type: boolean
+    default: false
+  trigger_poc-typescript:
+    type: boolean
+    default: false
 
 jobs:
-  build:
+  ci:
     docker:
-      - image: circleci/openjdk:8
+      - image: circleci/node:12
     steps:
       - checkout
       - run:
           name: Trigger build for modified projects
           shell: /bin/bash
-          command: tools/ci/core/build.sh
+          command: .circleci/scripts/core/build.sh
 
-  server:
+  abdo:
     docker:
-      - image: circleci/openjdk:8
-    working_directory: ~/project/apps/server
+      - image: circleci/node:12
+    working_directory: ~/project/apps/abdo
     steps:
-      - checkout:
-          path: ~/project
+      - checkout
       - run:
-          name: Build Server
-          command: ./gradlew build
+          name: Build
+          command: sleep 10
 
-  client:
+  dario:
     docker:
-      - image: circleci/openjdk:8
-    working_directory: ~/project/apps/client
+      - image: circleci/node:12
+    working_directory: ~/project/apps/dario
     steps:
-      - checkout:
-          path: ~/project
+      - checkout
       - run:
-          name: Build Client
-          command: ./gradlew build        
+          name: Build
+          command: sleep 10
 
-  common:
+  gabriel:
     docker:
-      - image: circleci/openjdk:8
-    working_directory: ~/project/libs/common
+      - image: circleci/node:12
+    working_directory: ~/project/libs/gabriel
     steps:
-      - checkout:
-          path: ~/project
+      - checkout
       - run:
-          name: Build Common
-          command: ./gradlew build      
+          name: Build
+          command: sleep 10
 
-  logging:
+  jonathan:
     docker:
-      - image: circleci/openjdk:8
-    working_directory: ~/project/libs/logging
+      - image: circleci/node:12
+    working_directory: ~/project/libs/jonathan
     steps:
-      - checkout:
-          path: ~/project
+      - checkout
       - run:
-          name: Build Logging
-          command: ./gradlew build      
+          name: Build
+          command: sleep 10
 
-  gradle-versioning-plugin:
+
+  kevin:
     docker:
-      - image: circleci/openjdk:8
-    working_directory: ~/project/tools/gradle-plugins/gradle-versioning-plugin
+      - image: circleci/node:12
+    working_directory: ~/project/libs/kevin
     steps:
-      - checkout:
-          path: ~/project
+      - checkout
       - run:
-          name: Build Gradle Versioning Plugin
-          command: ./gradlew build   
+          name: Build
+          command: sleep 10
 
+  nebez:
+    docker:
+      - image: circleci/node:12
+    working_directory: ~/project/libs/nebez
+    steps:
+      - checkout
+      - run:
+          name: Build
+          command: sleep 10
+
+  yannick:
+    docker:
+      - image: circleci/node:12
+    working_directory: ~/project/apps/yannick
+    steps:
+      - checkout
+      - run:
+          name: Build
+          command: sleep 10
+
+  failing_job:
+    docker:
+      - image: circleci/node:12
+    working_directory: ~/project
+    steps:
+      - checkout
+      - run:
+          name: Build
+          command: sleep 2; exit 1
+
+workflows:
+  version: 2
+
+  ci:
+    when: << pipeline.parameters.trigger_ci >>
+    jobs:
+      - ci
+
+  nebez:
+    when: << pipeline.parameters.trigger_nebez >>
+    jobs:
+      - nebez
+      - failing_job
+
+  poc-typescript:
+    when: << pipeline.parameters.trigger_poc-typescript >>
+    jobs:
+      - nebez
+      - failing_job
