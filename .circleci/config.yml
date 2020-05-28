@@ -1,148 +1,74 @@
-version: 2.1
-
-##
-# Forked from: https://github.com/zladovan/monorepo
-# The fork has been modified to allow for parallelism in CirleCI by spawning
-# workflows through parameterized pipeline creation. This complicates the
-# .circleci/config.yml considerably, but gives us all of the advantages that
-# workflows do over jobs. To go back to jobs, simply replace the "workflow"
-# methods with "job" in plugins/circleci.sh
-#
-# Usage:
-# Add globbing patterns to `projects.txt` (if needed) to pick up on your new
-# app. Your APP_NAME is equal to the top-level directory of the matched glob
-# pattern (e.g. apps/my-cool-app/ -> my-cool-app). Using your APP_NAME, create:
-#   1. A new parameter: trigger_$APP_NAME with a default value of false
-#   2. A new workflow: trigger_$APP_NAME that only runs when the aforementioned
-#      parameter is true (when: << pipeline.parameters.trigger_$APP_NAME >>)
-#   3. As many jobs as you want, as long as they don't collide with the jobs of
-#      another workflow, and reference them in the workflow.
-#
-# This script is also capable of building based on dependent changes. See
-# scripts/core/list-dependencies.sh for notes on how to achieve it.
-##
-
-parameters:
-  trigger_ci:
-    type: boolean
-    default: true
-
-  # A parameter per workflow
-  trigger_nebez:
-    type: boolean
-    default: false
-  trigger_poc-typescript:
-    type: boolean
-    default: false
-
+a_warning: This file is auto-generated! Please don't make changes here. See the .circleci/src/@main.yml
+  file instead for instructions on updating.
 jobs:
-  ci:
+  data-collector:
     docker:
-      - image: circleci/node:12
+    - image: cimg/base:2020.01
     steps:
-      - checkout
-      - run:
-          name: Trigger build for modified projects
-          shell: /bin/bash
-          command: .circleci/scripts/core/build.sh
-
-  abdo:
-    docker:
-      - image: circleci/node:12
-    working_directory: ~/project/apps/abdo
-    steps:
-      - checkout
-      - run:
-          name: Build
-          command: sleep 10
-
-  dario:
-    docker:
-      - image: circleci/node:12
-    working_directory: ~/project/apps/dario
-    steps:
-      - checkout
-      - run:
-          name: Build
-          command: sleep 10
-
-  gabriel:
-    docker:
-      - image: circleci/node:12
-    working_directory: ~/project/libs/gabriel
-    steps:
-      - checkout
-      - run:
-          name: Build
-          command: sleep 10
-
-  jonathan:
-    docker:
-      - image: circleci/node:12
-    working_directory: ~/project/libs/jonathan
-    steps:
-      - checkout
-      - run:
-          name: Build
-          command: sleep 10
-
-
-  kevin:
-    docker:
-      - image: circleci/node:12
-    working_directory: ~/project/libs/kevin
-    steps:
-      - checkout
-      - run:
-          name: Build
-          command: sleep 10
-
-  nebez:
-    docker:
-      - image: circleci/node:12
-    working_directory: ~/project/libs/nebez
-    steps:
-      - checkout
-      - run:
-          name: Build
-          command: sleep 10
-
-  yannick:
-    docker:
-      - image: circleci/node:12
-    working_directory: ~/project/apps/yannick
-    steps:
-      - checkout
-      - run:
-          name: Build
-          command: sleep 10
-
+    - checkout:
+        path: ~/project
+    - run:
+        command: sleep 10
+        name: Build
+    working_directory: ~/project/apps/data-collector
   failing_job:
     docker:
-      - image: circleci/node:12
-    working_directory: ~/project
+    - image: cimg/base:2020.01
     steps:
-      - checkout
-      - run:
-          name: Build
-          command: sleep 2; exit 1
-
+    - run: exit 1
+    working_directory: ~/project/apps/nebez
+  main:
+    docker:
+    - image: cimg/base:2020.05
+    steps:
+    - checkout
+    - run:
+        command: curl -fLSs https://raw.githubusercontent.com/CircleCI-Public/circleci-cli/master/install.sh
+          | sudo DESTDIR=/bin/circleci bash
+        name: Update CircleCI CLI tool
+        shell: /bin/bash
+    - run:
+        command: .circleci/scripts/core/validate-config.sh
+        name: Validate CircleCI config
+        shell: /bin/bash
+    - run:
+        command: .circleci/scripts/core/build.sh
+        name: Trigger build for modified projects
+        shell: /bin/bash
+  nebez:
+    docker:
+    - image: cimg/base:2020.01
+    steps:
+    - checkout:
+        path: ~/project
+    - setup_remote_docker
+    - run:
+        command: docker build -t hello-world-nebez .
+        name: Build
+    working_directory: ~/project/apps/nebez
+parameters:
+  trigger_data-collector:
+    default: false
+    type: boolean
+  trigger_main:
+    default: true
+    type: boolean
+  trigger_nebez:
+    default: false
+    type: boolean
+version: 2.1
 workflows:
+  data-collector:
+    jobs:
+    - data-collector
+    when: << pipeline.parameters.trigger_data-collector >>
+  main:
+    jobs:
+    - main
+    when: << pipeline.parameters.trigger_main >>
+  nebez:
+    jobs:
+    - nebez
+    when: << pipeline.parameters.trigger_nebez >>
   version: 2
 
-  ci:
-    when: << pipeline.parameters.trigger_ci >>
-    jobs:
-      - ci
-
-  nebez:
-    when: << pipeline.parameters.trigger_nebez >>
-    jobs:
-      - nebez
-      - failing_job
-
-  poc-typescript:
-    when: << pipeline.parameters.trigger_poc-typescript >>
-    jobs:
-      - nebez
-      - failing_job

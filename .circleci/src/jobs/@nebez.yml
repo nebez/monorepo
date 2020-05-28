@@ -1,0 +1,18 @@
+nebez:
+  docker:
+    - image: cimg/base:2020.01
+  working_directory: ~/project/apps/nebez
+  steps:
+    - checkout:
+        path: ~/project
+    - setup_remote_docker
+    - run:
+        name: Build
+        command: docker build -t hello-world-nebez .
+
+failing_job:
+  docker:
+    - image: cimg/base:2020.01
+  working_directory: ~/project/apps/nebez
+  steps:
+    - run: exit 1

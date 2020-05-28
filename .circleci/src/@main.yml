@@ -1,0 +1,106 @@
+version: 2.1
+
+##
+# Forked from: https://github.com/zladovan/monorepo
+#
+# The fork has been modified to allow for parallelism in CirleCI by spawning
+# workflows through parameterized pipeline creation. This complicates the
+# .circleci/config.yml considerably, but gives us all of the advantages that
+# workflows do over jobs. To go back to jobs, simply replace the "workflow"
+# methods with "job" in plugins/circleci.sh
+#
+# This is the main source file which should be packed into a .circle/config.yml
+# using the following command:
+# circleci config pack .circleci/src/ > .circleci/config.yml
+#
+# Usage:
+# Add globbing patterns to `projects.txt` (if needed) to pick up on your new
+# app. Your APP_NAME is equal to the top-level directory of the matched glob
+# pattern (e.g. apps/my-cool-app/ -> my-cool-app). Using your APP_NAME, create:
+#   1. A new parameter: trigger_$APP_NAME with a default value of false
+#   2. A new workflow: trigger_$APP_NAME that only runs when the aforementioned
+#      parameter is true (when: << pipeline.parameters.trigger_$APP_NAME >>)
+#   3. As many jobs as you want, as long as they don't collide with the jobs of
+#      another workflow, and reference them in the workflow.
+#
+# This script is also capable of building based on dependent changes. See
+# scripts/core/list-dependencies.sh for notes on how to achieve it.
+##
+
+parameters:
+  ##############################################################
+  # This is the only parameter that should default to true.
+  # Leave it alone.
+  ##############################################################
+  trigger_main:
+    type: boolean
+    default: true
+
+  ###########################
+  # A parameter per workflow
+  ###########################
+  trigger_nebez:
+    type: boolean
+    default: false
+
+  trigger_data-collector:
+    type: boolean
+    default: false
+
+workflows:
+  version: 2
+
+  ##############################################################
+  # This is the main workflow that is triggered on every build.
+  # Leave it alone.
+  ##############################################################
+  main:
+    when: << pipeline.parameters.trigger_main >>
+    jobs:
+      - main
+
+  ####################################################
+  # A workflow per project.
+  # Did you read the comment section above on naming?
+  ####################################################
+  nebez:
+    when: << pipeline.parameters.trigger_nebez >>
+    jobs:
+      - nebez
+
+  data-collector:
+    when: << pipeline.parameters.trigger_data-collector >>
+    jobs:
+      - data-collector
+
+
+jobs:
+  #############################################################################
+  # Put your project-specific jobs in the jobs/ directory, and don't forget to
+  # prefix the filename with an @ as per the FYAML spec:
+  # https://github.com/CircleCI-Public/fyaml
+  #############################################################################
+  main:
+    docker:
+      - image: cimg/base:2020.05
+    steps:
+      - checkout
+      - run:
+          name: Update CircleCI CLI tool
+          shell: /bin/bash
+          command: curl -fLSs https://raw.githubusercontent.com/CircleCI-Public/circleci-cli/master/install.sh | sudo DESTDIR=/bin/circleci bash
+      - run:
+          name: Validate CircleCI config
+          shell: /bin/bash
+          command: .circleci/scripts/core/validate-config.sh
+      - run:
+          name: Trigger build for modified projects
+          shell: /bin/bash
+          command: .circleci/scripts/core/build.sh
+
+# Ignore the line below. This file is not auto-generated. We're trying to warn
+# the people who will go on to edit the .circleci/config.yml file because the
+# packer likes to hoist and sort the YML alphabetically. This message goes up!
+a_warning:
+  This file is auto-generated! Please don't make changes here. See the
+  .circleci/src/@main.yml file instead for instructions on updating.

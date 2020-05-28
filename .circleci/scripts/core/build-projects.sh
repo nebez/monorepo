@@ -26,6 +26,7 @@ DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 : "${BUILD_MAX_SECONDS:=$(( 15 * 60 ))}"
 : "${BUILD_CHECK_AFTER_SECONDS:=15}"
 : "${CI_PLUGIN:=$DIR/../plugins/circleci.sh}"
+: "${GH_PLUGIN:=$DIR/../plugins/github.sh}"
 
 # Validate requirements
 if [[ "$#" -eq 0 ]]; then
@@ -38,6 +39,15 @@ fi
 PROJECTS=()
 for PROJECT in $@; do
     echo "Triggering build for project '$PROJECT'"
+
+    # Circle isn't automatically injecting the right env var so we can't find
+    # out if we're in a PR yet or not. The proposed fix is to only run on master
+    # + PRs, but I don't know if that's what we want.
+    if [[ ! -z ${CIRCLE_PULL_REQUEST} ]]; then
+        PULL_REQUEST_ID=$(basename "${CIRCLE_PULL_REQUEST}")
+        $GH_PLUGIN add-label $PULL_REQUEST_ID $PROJECT
+    fi
+
     PROJECT_NAME=$(basename $PROJECT)
     BUILD_NUM=$(${CI_PLUGIN} build $PROJECT_NAME)
     if [[ -z ${BUILD_NUM} ]] || [[ ${BUILD_NUM} -eq "null" ]]; then

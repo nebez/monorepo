@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Documentation 
+# Documentation
 read -r -d '' USAGE_TEXT << EOM
 Usage: github.sh command [<param>...]
 Run given command in github.
@@ -8,22 +8,23 @@ Run given command in github.
 Requires github environment variables (additional may be required for specific commands):
     GITHUB_REPOSITORY
     GITHUB_TOKEN
-    
-Available commands:  
+
+Available commands:
     build <project_name>    start build of given project
                             outputs build request id
                             requires: GITHUB_REF
     status <build_number>   get status of build identified by given build number
                             outputs one of: success | failed | null
-    kill <build_number>     kills running build identified by given build number                            
+    kill <build_number>     kills running build identified by given build number
+    add-label <id> <label>  adds a label to a pull request identified by id
     hash <position>         get revision hash on given positions
                             available positions:
                                 last        hash of last succesfull build commit
                                             only commits of 'build' job are considered
                                             accepts: GITHUB_REF, if ommited no branch filtering
                                 current     hash of current commit
-                                            requires: GITHUB_SHA                         
-    help                    display this usage text                             
+                                            requires: GITHUB_SHA
+    help                    display this usage text
 EOM
 
 set -e
@@ -66,7 +67,7 @@ function require_env_var {
     local ENV_VAR=$1
     if [[ -z "${!ENV_VAR}" ]]; then
         fail "$ENV_VAR is not set"
-    fi  
+    fi
 }
 
 ##
@@ -142,7 +143,7 @@ function get_branch {
 ##
 function trigger_build {
     local PROJECT_NAME=$1
-    require_not_null "Project name not speficied" ${PROJECT_NAME} 
+    require_not_null "Project name not specified" ${PROJECT_NAME}
     BRANCH=$(get_branch required)
     NOW=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
     BODY="$(cat <<-EOM
@@ -158,14 +159,14 @@ EOM
     for (( WAIT_SECONDS=0; WAIT_SECONDS<=5; WAIT_SECONDS+=1 )); do
         WFS=$(get 'actions/runs?event=repository_dispatch' | jq '[ .workflow_runs[] | select(.created_at > "'${NOW}'" and .head_branch == "'${BRANCH}'") ]')
         ID='null'
-        for JOBS_URL in $(echo "$WFS" | jq -r 'map(.jobs_url) | .[]'); do 
+        for JOBS_URL in $(echo "$WFS" | jq -r 'map(.jobs_url) | .[]'); do
             JOBS_URL=${JOBS_URL/$GITHUB_URL/}
             ID=$(get ${JOBS_URL:1} | jq '[ .jobs[] | select(.name == "'${PROJECT_NAME}'") ] | map(.run_id) | .[0]')
-            if [[ ${ID} != 'null' ]]; then 
+            if [[ ${ID} != 'null' ]]; then
                 break
             fi
         done
-        if [[ ${ID} == 'null' ]]; then 
+        if [[ ${ID} == 'null' ]]; then
             sleep 1
         else
             echo ${ID}
@@ -186,7 +187,7 @@ EOM
 ##
 function get_build_status {
     local BUILD_ID=$1
-    require_not_null "Build id not speficied" ${BUILD_ID} 
+    require_not_null "Build id not specified" ${BUILD_ID}
     STATUS_RESPONSE=$(get actions/runs/${BUILD_ID})
     STATUS=$(echo "$STATUS_RESPONSE" | jq -r .conclusion)
     case $STATUS in
@@ -214,8 +215,33 @@ function get_build_status {
 ##
 function kill_build {
     local BUILD_ID=$1
-    require_not_null "Build id not speficied" ${BUILD_ID} 
+    require_not_null "Build id not specified" ${BUILD_ID}
     STATUS_RESPONSE=$(post actions/runs/${BUILD_ID}/cancel)
+}
+
+##
+# Adds a label to a pull request
+#
+# Input:
+#   PR_ID - id of pull request
+#   LABEL_NAME - label to add
+##
+function add_label_to_pr {
+    local PR_ID=$1
+    local LABEL_NAME=$2
+    require_not_null "Pull request id not specified" ${PR_ID}
+    require_not_null "Label name not specified" ${LABEL_NAME}
+    STATUS_RESPONSE=$(post issues/${PR_ID}/labels "[\"${LABEL_NAME}\"]")
+
+    if [[ "$STATUS_RESPONSE" == *"\"Not Found\""* ]]; then
+        echo "Pull Request #$PR_ID not found in $GITHUB_REPOSITORY"
+    elif [[ "$STATUS_RESPONSE" == *"\"id\""* ]]; then
+        echo "$STATUS_RESPONSE" | jq '. | map(.name)'
+    else
+        echo "API Error"
+        echo $STATUS_RESPONSE
+        exit 1
+    fi
 }
 
 ##
@@ -254,7 +280,7 @@ require_env_var GITHUB_TOKEN
 
 # Parse command
 case $1 in
-    build)        
+    build)
         trigger_build $2
         ;;
     status)
@@ -262,7 +288,10 @@ case $1 in
         ;;
     kill)
         kill_build $2
-        ;;    
+        ;;
+    add-label)
+        add_label_to_pr $2 $3
+        ;;
     hash)
         case $2 in
             last)
@@ -272,11 +301,11 @@ case $1 in
                 get_current_commit
                 ;;
             *)
-                fail "Unknown hash position $2"             
+                fail "Unknown hash position $2"
                 ;;
         esac
-        ;;        
+        ;;
     *)
         fail "Unknown command $1"
-        ;;        
+        ;;
 esac

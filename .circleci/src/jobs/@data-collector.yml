@@ -1,0 +1,10 @@
+data-collector:
+  docker:
+    - image: cimg/base:2020.01
+  working_directory: ~/project/apps/data-collector
+  steps:
+    - checkout:
+        path: ~/project
+    - run:
+        name: Build
+        command: sleep 10 # Update to build the actual project.

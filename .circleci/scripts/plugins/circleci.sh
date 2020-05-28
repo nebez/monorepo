@@ -173,7 +173,7 @@ function trigger_workflow {
     local WORKFLOW_NAME=$1
     require_env_var CIRCLE_BRANCH
     require_not_null "Workflow name not speficied" ${WORKFLOW_NAME}
-    local TRIGGER_PIPELINE_BODY=`printf '{"branch": "%s", "parameters": { "trigger_ci": false, "trigger_%s": true } }' $CIRCLE_BRANCH $WORKFLOW_NAME`
+    local TRIGGER_PIPELINE_BODY=`printf '{"branch": "%s", "parameters": { "trigger_main": false, "trigger_%s": true } }' $CIRCLE_BRANCH $WORKFLOW_NAME`
     TRIGGER_RESPONSE=$(post_v2 "pipeline" "$TRIGGER_PIPELINE_BODY")
     echo "$TRIGGER_RESPONSE" | jq -r '.["number"]'
 }
