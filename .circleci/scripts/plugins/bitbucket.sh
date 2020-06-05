@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Documentation 
+# Documentation
 read -r -d '' USAGE_TEXT << EOM
 Usage: bitbucket.sh command [<param>...]
 Run given command in bitbucket pipelines.
@@ -9,22 +9,22 @@ Requires bitbucket environment variables (additional may be required for specifi
     BITBUCKET_USER
     BITBUCKET_PASSWORD
     BITBUCKET_REPO_FULL_NAME
-    
-Available commands:  
+
+Available commands:
     build <project_name>    start build of given project
                             outputs build number
                             requires: BITBUCKET_BRANCH
     status <build_number>   get status of build identified by given build number
                             outputs one of: success | failed | null
-    kill <build_number>     kills running build identified by given build number                            
+    kill <build_number>     kills running build identified by given build number
     hash <position>         get revision hash on given positions
                             available positions:
                                 last        hash of last succesfull build commit
                                             only commits of 'build' job are considered
                                             accepts: BITBUCKET_BRANCH, if ommited no branch filtering
                                 current     hash of current commit
-                                            requires: BITBUCKET_COMMIT                         
-    help                    display this usage text                             
+                                            requires: BITBUCKET_COMMIT
+    help                    display this usage text
 EOM
 
 set -e
@@ -69,7 +69,7 @@ function require_env_var {
     local ENV_VAR=$1
     if [[ -z "${!ENV_VAR}" ]]; then
         fail "$ENV_VAR is not set"
-    fi  
+    fi
 }
 
 ##
@@ -125,7 +125,7 @@ function get {
 function trigger_build {
     local PROJECT_NAME=$1
     require_env_var BITBUCKET_BRANCH
-    require_not_null "Project name not speficied" ${PROJECT_NAME} 
+    require_not_null "Project name not specified" ${PROJECT_NAME}
     BODY="$(cat <<-EOM
     {
         "target": {
@@ -137,7 +137,7 @@ function trigger_build {
             "ref_name": "$BITBUCKET_BRANCH",
             "ref_type": "branch"
         }
-    }   
+    }
 EOM
     )"
     TRIGGER_RESPONSE=$(post "pipelines/" "${BODY}")
@@ -155,7 +155,7 @@ EOM
 ##
 function get_build_status {
     local BUILD_NUM=$1
-    require_not_null "Build number not speficied" ${BUILD_NUM} 
+    require_not_null "Build number not specified" ${BUILD_NUM}
     STATUS_RESPONSE=$(get pipelines/${BUILD_NUM})
     STATUS=$(echo "$STATUS_RESPONSE" | jq -r '.state.result.name')
     case $STATUS in
@@ -180,7 +180,7 @@ function get_build_status {
 ##
 function kill_build {
     local BUILD_NUM=$1
-    require_not_null "Build number not speficied" ${BUILD_NUM} 
+    require_not_null "Build number not specified" ${BUILD_NUM}
     STATUS_RESPONSE=$(post pipelines/${BUILD_NUM}/stopPipeline)
 }
 
@@ -223,7 +223,7 @@ require_env_var BITBUCKET_REPO_FULL_NAME
 
 # Parse command
 case $1 in
-    build)        
+    build)
         trigger_build $2
         ;;
     status)
@@ -231,7 +231,7 @@ case $1 in
         ;;
     kill)
         kill_build $2
-        ;;    
+        ;;
     hash)
         case $2 in
             last)
@@ -241,11 +241,11 @@ case $1 in
                 get_current_commit
                 ;;
             *)
-                fail "Unknown hash position $2"             
+                fail "Unknown hash position $2"
                 ;;
         esac
-        ;;        
+        ;;
     *)
         fail "Unknown command $1"
-        ;;        
+        ;;
 esac

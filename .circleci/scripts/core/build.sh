@@ -3,7 +3,7 @@
 ##
 # Main entry for monorepository build.
 # Triggers builds for all modified projects in order respecting their dependencies.
-# 
+#
 # Usage:
 #   build.sh
 ##
@@ -17,7 +17,7 @@ DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 : "${CI_TOOL:=circleci}"
 : "${CI_PLUGIN:=$DIR/../plugins/${CI_TOOL}.sh}"
 
-# Resolve commit range for current build 
+# Resolve commit range for current build
 LAST_SUCCESSFUL_COMMIT=$(${CI_PLUGIN} hash last)
 echo "Last commit: ${LAST_SUCCESSFUL_COMMIT}"
 if [[ ${LAST_SUCCESSFUL_COMMIT} == "null" ]]; then
@@ -31,7 +31,7 @@ echo "Commit range: $COMMIT_RANGE"
 if [[ -f $(git rev-parse --git-dir)/shallow ]]; then
     if [[ ${LAST_SUCCESSFUL_COMMIT} == "null" ]]; then
         git fetch --unshallow
-    else 
+    else
         DEPTH=1
         until git show ${LAST_SUCCESSFUL_COMMIT} > /dev/null 2>&1
         do
@@ -53,6 +53,8 @@ fi
 
 echo "Following projects need to be built"
 echo -e "$PROJECTS_TO_BUILD"
+
+exit
 
 # Build all modified projects
 echo -e "$PROJECTS_TO_BUILD" | while read PROJECTS; do

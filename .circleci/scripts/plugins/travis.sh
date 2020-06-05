@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Documentation 
+# Documentation
 read -r -d '' USAGE_TEXT << EOM
 Usage: travis.sh command [<param>...]
 Run given command in travis.
@@ -8,22 +8,22 @@ Run given command in travis.
 Requires bitbucket environment variables (additional may be required for specific commands):
     TRAVIS_TOKEN
     TRAVIS_REPO_SLUG
-    
-Available commands:  
+
+Available commands:
     build <project_name>    start build of given project
                             outputs build request id
                             requires: TRAVIS_BRANCH
     status <build_number>   get status of build identified by given build number
                             outputs one of: success | failed | null
-    kill <build_number>     kills running build identified by given build number                            
+    kill <build_number>     kills running build identified by given build number
     hash <position>         get revision hash on given positions
                             available positions:
                                 last        hash of last succesfull build commit
                                             only commits of 'build' job are considered
                                             requires: TRAVIS_BRANCH
                                 current     hash of current commit
-                                            requires: TRAVIS_COMMIT                         
-    help                    display this usage text                             
+                                            requires: TRAVIS_COMMIT
+    help                    display this usage text
 EOM
 
 set -e
@@ -69,7 +69,7 @@ function require_env_var {
     local ENV_VAR=$1
     if [[ -z "${!ENV_VAR}" ]]; then
         fail "$ENV_VAR is not set"
-    fi  
+    fi
 }
 
 ##
@@ -101,7 +101,7 @@ function post {
     fi
     RESPONSE=$(eval "curl -XPOST -s -g -H 'Travis-API-Version: 3' -H 'Authorization: token ${TRAVIS_TOKEN}' ${DATA} ${TRAVIS_URL}/${URL}")
     TYPE=$(echo "$RESPONSE" | jq -r '."@type"')
-    if [[ ${TYPE} = 'error' ]]; then 
+    if [[ ${TYPE} = 'error' ]]; then
         log "ERROR: Error response from travis POST request"
         log "$RESPONSE"
         return 1
@@ -125,7 +125,7 @@ function get {
 #
 # Build in travis is triggered by creating a 'request'.
 # After crating a request there is need to wait for request to be 'approved'.
-# When request is 
+# When request is
 #  - approved we can get build id.
 #  - rejected we consider it as there is no job defined with given name and return 'null'.
 #  - not approved nor rejected within 10 seconds error is raised.
@@ -140,7 +140,7 @@ function trigger_build {
     # TODO there is a ban for 1 hour if you make 10 POST requests within 30 seconds
     local PROJECT_NAME=$1
     require_env_var TRAVIS_BRANCH
-    require_not_null "Project name not speficied" ${PROJECT_NAME} 
+    require_not_null "Project name not specified" ${PROJECT_NAME}
     BODY="$(cat <<-EOM
     {
         "request": {
@@ -152,7 +152,7 @@ function trigger_build {
                     ]
                 }
             }
-        }   
+        }
     }
 EOM
     )"
@@ -172,7 +172,7 @@ EOM
                 ;;
             *)
                 sleep 1
-                ;;   
+                ;;
         esac
     done
     log "ERROR: Timeout when waiting for request '$REQUEST_ID' to be approved"
@@ -191,7 +191,7 @@ EOM
 ##
 function get_build_status {
     local BUILD_ID=$1
-    require_not_null "Build id not speficied" ${BUILD_ID} 
+    require_not_null "Build id not specified" ${BUILD_ID}
     STATUS_RESPONSE=$(get build/${BUILD_ID})
     STATUS=$(echo "$STATUS_RESPONSE" | jq -r .state)
     case $STATUS in
@@ -216,7 +216,7 @@ function get_build_status {
 ##
 function kill_build {
     local BUILD_ID=$1
-    require_not_null "Build id not speficied" ${BUILD_ID} 
+    require_not_null "Build id not specified" ${BUILD_ID}
     STATUS_RESPONSE=$(post build/${BUILD_ID}/cancel)
 }
 
@@ -253,7 +253,7 @@ require_env_var TRAVIS_REPO_SLUG
 
 # Parse command
 case $1 in
-    build)        
+    build)
         trigger_build $2
         ;;
     status)
@@ -261,7 +261,7 @@ case $1 in
         ;;
     kill)
         kill_build $2
-        ;;    
+        ;;
     hash)
         case $2 in
             last)
@@ -271,11 +271,11 @@ case $1 in
                 get_current_commit
                 ;;
             *)
-                fail "Unknown hash position $2"             
+                fail "Unknown hash position $2"
                 ;;
         esac
-        ;;        
+        ;;
     *)
         fail "Unknown command $1"
-        ;;        
+        ;;
 esac

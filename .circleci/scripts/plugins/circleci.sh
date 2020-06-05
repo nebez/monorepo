@@ -155,7 +155,7 @@ function get_v2 {
 function trigger_build {
     local PROJECT_NAME=$1
     require_env_var CIRCLE_BRANCH
-    require_not_null "Project name not speficied" ${PROJECT_NAME}
+    require_not_null "Project name not specified" ${PROJECT_NAME}
     TRIGGER_RESPONSE=$(post "tree/$CIRCLE_BRANCH" "build_parameters[CIRCLE_JOB]=${PROJECT_NAME}")
     echo "$TRIGGER_RESPONSE" | jq -r '.["build_num"]'
 }
@@ -172,7 +172,7 @@ function trigger_build {
 function trigger_workflow {
     local WORKFLOW_NAME=$1
     require_env_var CIRCLE_BRANCH
-    require_not_null "Workflow name not speficied" ${WORKFLOW_NAME}
+    require_not_null "Workflow name not specified" ${WORKFLOW_NAME}
     local TRIGGER_PIPELINE_BODY=`printf '{"branch": "%s", "parameters": { "trigger_main": false, "trigger_%s": true } }' $CIRCLE_BRANCH $WORKFLOW_NAME`
     TRIGGER_RESPONSE=$(post_v2 "pipeline" "$TRIGGER_PIPELINE_BODY")
     echo "$TRIGGER_RESPONSE" | jq -r '.["number"]'
@@ -189,7 +189,7 @@ function trigger_workflow {
 ##
 function get_job_build_status {
     local BUILD_NUM=$1
-    require_not_null "Build number not speficied" ${BUILD_NUM}
+    require_not_null "Build number not specified" ${BUILD_NUM}
     STATUS_RESPONSE=$(get ${BUILD_NUM})
     echo "$STATUS_RESPONSE" | jq -r '.["outcome"]'
 }
@@ -205,7 +205,7 @@ function get_job_build_status {
 ##
 function get_workflow_build_status {
     local BUILD_NUM=$1
-    require_not_null "Build number not speficied" ${BUILD_NUM}
+    require_not_null "Build number not specified" ${BUILD_NUM}
 
     # CircleCI makes it nice and painful to go from a pipeline build to a
     # workflow status...
@@ -217,17 +217,25 @@ function get_workflow_build_status {
     PIPELINE_WORKFLOW_RESPONSE=$(get_v2 pipeline/${PIPELINE_ID}/workflow)
 
     # We can coalesce the workflow statuses into one by applying the following:
+    # IF .items.length == 0 return "null"
     # IF .statuses.filter(.status != 'success').length == 0 return "success"
     # IF .statuses.filter(.status == 'failing').length > 0 return "failed"
     # IF .statuses.filter(.status == 'failed').length > 0 return "failed"
     # return null
     #
     # This translates into:
+    # With 0 jobs in total, the workflow hasn't started yet
     # With 0 non-success jobs, we're successful
     # With 1 or more fail(ed|ing) jobs, we're failing
     # else, we're still waiting
+    TOTAL_JOB_COUNT=$(echo "$PIPELINE_WORKFLOW_RESPONSE" | jq -r '.items | length')
     FAILING_JOB_COUNT=$(echo "$PIPELINE_WORKFLOW_RESPONSE" | jq -r '.items | map(.status)[] | select(. == ("failing", "failed"))' | wc -l)
     NON_SUCCESSFUL_JOB_COUNT=$(echo "$PIPELINE_WORKFLOW_RESPONSE" | jq -r '.items | map(.status)[] | select(. != "success")' | wc -l)
+
+    if [[ "$TOTAL_JOB_COUNT" -eq 0 ]]; then
+        echo "null"
+        exit
+    fi
 
     if [[ "$NON_SUCCESSFUL_JOB_COUNT" -eq 0 ]]; then
         echo "success"
@@ -251,7 +259,7 @@ function get_workflow_build_status {
 ##
 function kill_build {
     local BUILD_NUM=$1
-    require_not_null "Build number not speficied" ${BUILD_NUM}
+    require_not_null "Build number not specified" ${BUILD_NUM}
     STATUS_RESPONSE=$(post ${BUILD_NUM}/cancel)
 }
 
@@ -264,7 +272,7 @@ function kill_build {
 function get_last_successful_commit {
     require_env_var CIRCLE_BRANCH
     get "tree/$CIRCLE_BRANCH?filter=successful&limit=100" \
-        | jq --raw-output '[.[]|select(.workflows.job_name=="build")] | max_by(.build_num).vcs_revision'
+        | jq --raw-output '[.[]|select(.workflows.job_name=="main")] | max_by(.build_num).vcs_revision'
 }
 
 ##

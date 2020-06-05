@@ -236,7 +236,8 @@ function add_label_to_pr {
     if [[ "$STATUS_RESPONSE" == *"\"Not Found\""* ]]; then
         echo "Pull Request #$PR_ID not found in $GITHUB_REPOSITORY"
     elif [[ "$STATUS_RESPONSE" == *"\"id\""* ]]; then
-        echo "$STATUS_RESPONSE" | jq '. | map(.name)'
+        echo "Added label [${LABEL_NAME}] to #${PR_ID}"
+        # echo "$STATUS_RESPONSE" | jq '. | map(.name)'
     else
         echo "API Error"
         echo $STATUS_RESPONSE
