@@ -266,12 +266,22 @@ function kill_build {
 ##
 # Get revision hash of last successful commit which invokes main monorepository build
 #
+# Input:
+#   TARGET_BRANCH - an optional branch to get the last successful commit of,
+#                   otherwise defaults to requiring CIRCLE_BRANCH
+#
 # Output:
 #   revision hash or null when there were no commits yet
 ##
 function get_last_successful_commit {
-    require_env_var CIRCLE_BRANCH
-    get "tree/$CIRCLE_BRANCH?filter=successful&limit=100" \
+    local TARGET_BRANCH=$1
+
+    if [[ -z $TARGET_BRANCH ]]; then
+        require_env_var CIRCLE_BRANCH
+        TARGET_BRANCH="${CIRCLE_BRANCH}"
+    fi
+
+    get "tree/$TARGET_BRANCH?filter=successful&limit=100" \
         | jq --raw-output '[.[]|select(.workflows.job_name=="main")] | max_by(.build_num).vcs_revision'
 }
 
@@ -311,7 +321,7 @@ case $1 in
     hash)
         case $2 in
             last)
-                get_last_successful_commit
+                get_last_successful_commit $3
                 ;;
             current)
                 get_current_commit

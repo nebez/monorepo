@@ -17,8 +17,17 @@ DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 : "${CI_TOOL:=circleci}"
 : "${CI_PLUGIN:=$DIR/../plugins/${CI_TOOL}.sh}"
 
-# Resolve commit range for current build
-LAST_SUCCESSFUL_COMMIT=$(${CI_PLUGIN} hash last)
+# Resolve commit range for current build. In a PR, we compare the entirety of
+# it to origin/master instead of just the changes since the last successful
+# build in this PR.
+
+if [[ -z ${CIRCLE_PULL_REQUEST} ]]; then
+    LAST_SUCCESSFUL_COMMIT=$(${CI_PLUGIN} hash last)
+else
+    echo "In pull request... getting last master commit"
+    LAST_SUCCESSFUL_COMMIT=$(${CI_PLUGIN} hash last master)
+fi
+
 echo "Last commit: ${LAST_SUCCESSFUL_COMMIT}"
 if [[ ${LAST_SUCCESSFUL_COMMIT} == "null" ]]; then
     COMMIT_RANGE="origin/master"
@@ -26,6 +35,7 @@ else
     COMMIT_RANGE="$(${CI_PLUGIN} hash current)..${LAST_SUCCESSFUL_COMMIT}"
 fi
 echo "Commit range: $COMMIT_RANGE"
+
 
 # Ensure we have all changes from last successful build
 if [[ -f $(git rev-parse --git-dir)/shallow ]]; then
@@ -53,8 +63,6 @@ fi
 
 echo "Following projects need to be built"
 echo -e "$PROJECTS_TO_BUILD"
-
-exit
 
 # Build all modified projects
 echo -e "$PROJECTS_TO_BUILD" | while read PROJECTS; do
