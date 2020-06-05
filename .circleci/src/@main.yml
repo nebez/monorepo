@@ -71,8 +71,16 @@ workflows:
   data-collector:
     when: << pipeline.parameters.trigger_data-collector >>
     jobs:
-      - data-collector
-
+      - data-collector-app
+      - data-collector-nginx
+      - data-collector-deploy:
+          requires:
+            - data-collector-app
+            - data-collector-nginx
+          filters:
+            branches:
+              only:
+                - master
 
 jobs:
   #############################################################################

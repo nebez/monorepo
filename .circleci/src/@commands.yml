@@ -1,0 +1,32 @@
+commands:
+  docker-login-sbx:
+    description: "Login to Docker artifactory repository (sandbox)"
+    steps:
+      - run:
+          name: "Docker Login (sbx)"
+          command: exit 1
+
+  docker-login-stg:
+    description: "Login to Docker artifactory repository (staging)"
+    steps:
+      - run:
+          name: "Docker Login (stg)"
+          command: exit 1
+
+  trigger-cd:
+    description: "Trigger a CD pipeline"
+    parameters:
+      job:
+        type: string
+      docker-repo:
+        type: string
+      token:
+        type: string
+        default: $CD_TOKEN
+      branch:
+        type: string
+        default: $CIRCLE_BRANCH
+    steps:
+      - run:
+          name: Trigger Pipeline
+          command: exit 1

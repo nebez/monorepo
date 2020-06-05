@@ -1,15 +1,80 @@
 a_warning: This file is auto-generated! Please don't make changes here. See the .circleci/src/@main.yml
   file instead for instructions on updating.
+commands:
+  docker-login-sbx:
+    description: Login to Docker artifactory repository (sandbox)
+    steps:
+    - run:
+        command: exit 1
+        name: Docker Login (sbx)
+  docker-login-stg:
+    description: Login to Docker artifactory repository (staging)
+    steps:
+    - run:
+        command: exit 1
+        name: Docker Login (stg)
+  trigger-cd:
+    description: Trigger a CD pipeline
+    parameters:
+      branch:
+        default: $CIRCLE_BRANCH
+        type: string
+      docker-repo:
+        type: string
+      job:
+        type: string
+      token:
+        default: $CD_TOKEN
+        type: string
+    steps:
+    - run:
+        command: exit 1
+        name: Trigger Pipeline
 jobs:
-  data-collector:
+  data-collector-app:
     docker:
     - image: cimg/base:2020.01
     steps:
     - checkout:
         path: ~/project
+    - setup_remote_docker
     - run:
-        command: sleep 10
-        name: Build
+        command: |
+          cp .env.example .env
+          docker build -t app .
+        name: Build application Docker image
+    - docker-login-sbx
+    - run:
+        command: |
+          DOCKER_REPO=foo/bar
+
+          docker tag app "$DOCKER_REPO"
+          docker push "$DOCKER_REPO"
+        name: Tag + Push
+    working_directory: ~/project/apps/data-collector
+  data-collector-deploy:
+    docker:
+    - image: cimg/base:2020.01
+    steps:
+    - trigger-pipeline:
+        docker-repo: $DOCKER_REPO
+        job: payments-data-collector/payments-data-collector-sbx
+  data-collector-nginx:
+    docker:
+    - image: cimg/base:2020.01
+    steps:
+    - checkout:
+        path: ~/project
+    - setup_remote_docker
+    - docker-login-sbx
+    - run:
+        command: |
+          DOCKER_REPO=foo/bar2
+
+          docker build -t nginx nginx/
+          docker tag nginx "$DOCKER_REPO"
+          docker push "$DOCKER_REPO"
+        name: Build, Tag & Push
     working_directory: ~/project/apps/data-collector
   failing_job:
     docker:
@@ -60,7 +125,16 @@ version: 2.1
 workflows:
   data-collector:
     jobs:
-    - data-collector
+    - data-collector-app
+    - data-collector-nginx
+    - data-collector-deploy:
+        filters:
+          branches:
+            only:
+            - master
+        requires:
+        - data-collector-app
+        - data-collector-nginx
     when: << pipeline.parameters.trigger_data-collector >>
   main:
     jobs:

@@ -1,10 +1,47 @@
-data-collector:
+data-collector-app:
   docker:
     - image: cimg/base:2020.01
   working_directory: ~/project/apps/data-collector
   steps:
     - checkout:
         path: ~/project
+    - setup_remote_docker
     - run:
-        name: Build
-        command: sleep 10 # Update to build the actual project.
+        name: Build application Docker image
+        command: |
+          cp .env.example .env
+          docker build -t app .
+    - docker-login-sbx
+    - run:
+        name: Tag + Push
+        command: |
+          DOCKER_REPO=foo/bar
+
+          docker tag app "$DOCKER_REPO"
+          docker push "$DOCKER_REPO"
+
+data-collector-nginx:
+  docker:
+    - image: cimg/base:2020.01
+  working_directory: ~/project/apps/data-collector
+  steps:
+    - checkout:
+        path: ~/project
+    - setup_remote_docker
+    - docker-login-sbx
+    - run:
+        name: Build, Tag & Push
+        command: |
+          DOCKER_REPO=foo/bar2
+
+          docker build -t nginx nginx/
+          docker tag nginx "$DOCKER_REPO"
+          docker push "$DOCKER_REPO"
+
+data-collector-deploy:
+  docker:
+    - image: cimg/base:2020.01
+  steps:
+    - trigger-pipeline:
+        job: payments-data-collector/payments-data-collector-sbx
+        docker-repo: $DOCKER_REPO
